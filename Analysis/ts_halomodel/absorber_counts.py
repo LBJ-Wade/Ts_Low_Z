@@ -159,11 +159,7 @@ def r_tau(tau,m,z,params,recompute=False,dtau=0.):
     if dtau==1.:
         #return dr/dtau
         return SPLINE_DICT[splkey].ev(np.log(m),
-<<<<<<< HEAD
         np.log(tau),dy=dtau)/tau*r_tau(tau,m,z,params)
-=======
-        np.log(tau),[0.,dtau])*rVir(m,z)/tau*r_tau(tau,m,z,params)
->>>>>>> 8b4ee19c000dacdb634c7ffde7a05e3ef4ff1dc1
     else:
         return np.exp(SPLINE_DICT[splkey].ev(np.log(m),
         np.log(tau)))*rVir(m,z)
@@ -346,10 +342,6 @@ def sefd(z,r_ant,trx,eta=0.5):
     tsys=60.*(C/freq_obs)**2.55+trx
     return KBOLTZMANN*tsys/2./JY/aeff/eta
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 8b4ee19c000dacdb634c7ffde7a05e3ef4ff1dc1
 def rms_chan(z,nant,r_ant,chan_w,t_int,trx,npol=2,eta=0.5):
     '''
     rms in Jy/beam
