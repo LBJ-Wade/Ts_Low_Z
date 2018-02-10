@@ -119,11 +119,8 @@ def tau_gaussian(b,m,z,offset,params,dlogr=0,integrated=False,
     return output
 
 
-<<<<<<< HEAD
-def r_tau(tau,m,z,params,dtau=0.,recompute=False):
-=======
+
 def r_tau(tau,m,z,params,recompute=False,dtau=0.):
->>>>>>> 8b4ee19c000dacdb634c7ffde7a05e3ef4ff1dc1
     '''
     Compute the radius of a halo within which all LoSs subtend a maximum.
     tau'>tau.
