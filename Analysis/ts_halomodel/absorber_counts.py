@@ -240,7 +240,7 @@ def dsigma_dtau(tau,m,z,params):
     return 2.*PI*r_tau(tau,m,z,params)*r_tau(tau,m,z,params,dtau=1.)
 
 
-def rline(m,z,channel_width):
+def rline(m,z,channel_width,params):
     '''
     ratio between effective standard deviation in gaussian line-profile
     for HI absorption convolved with channelization function
@@ -249,6 +249,7 @@ def rline(m,z,channel_width):
         m, mass of host halo.
         z, redshift
         channel-width,width of channel (Hz)
+        params, dictionary of HI and Ts parameters.
     Returns:
         ratio between convolved velocity width and channel width
     '''
@@ -271,8 +272,8 @@ def d_tau_variance_dm(m,z,params):
         maxis=np.logspace(M_INTERP_MIN,M_INTERP_MAX,N_INTERP_M)
         varvals=np.zeros_like(maxis)
         for mnum,mval in enumerate(maxis):
-            g=lambda x: np.abs(dsigma_dtau(10.**x,m,z))*10.**(3.*x)\
-            *sigma_line(10.**x,z,params)/channel_width*2.
+            g=lambda x: np.abs(dsigma_dtau(10.**x,mval,z))*10.**(3.*x)\
+            /rline(mval,z,channel_width,params)/(channel_width*C/F21*1e-3)**2.
             varvals[mnum]=integrate.quad(g,TAU_INTERP_MIN,TAU_INTERP_MAX)[0]
         SPLINE_DICT[splkey]=interp.interp1d(np.log(maxis),np.log(varvals))
     return np.exp(SPLINE_DICT[splkey](np.log(m)))
@@ -292,8 +293,19 @@ def tau_variance(z,channel_width,params):
 
 def v_obs_variance(z,dz,survey_area,rms,channel_width,params):
     '''
-    Determine variance for
+    variance on a LoS velocity measurement at redshift z over
+    redshift bin delta z
+    Args:
+        z, center of redshift bin
+        dz, width of redshift bin
+        survey_area, area of survey for lines (steradians)
+        rms, noise level per observing channel.
+        params, parameters for HI/Ts model.
+    Returns:
+        variance of LoS in one redshift bin (km/sec)^2
     '''
+    return 1./(tau_variance(z,channel_width,params)*np.sqrt(PI)/2./rms**2.\
+    *var_flux(z)*C*1e-3/COSMO.H0*LITTLEH*survey_area*dz)
 
 
 def tau_limit(snr,m,z,channel_width,params):
@@ -309,7 +321,7 @@ def tau_limit(snr,m,z,channel_width,params):
     Returns:
         limiting detectable optical depth
     '''
-    rchan=rline(m,z,channel_width)
+    rchan=rline(m,z,channel_width,params)
     output=-np.log(np.max([1.-rchan/snr,1e-100]))
     return output
 
@@ -414,12 +426,14 @@ def instrument_counts(z,survey_area,smin,smax,channel_width,rms,params):
 
 def varFlux(s,k=3000.,s0=.88,gamma=-1.75,smin=0.):
     '''
-    return variance in flux (Jy^2/sr) from dn/ds=k(s/s0)^gamma power law
+    Variance in flux (Jy^2/sr) from dn/ds=k(s/s0)^gamma power law
     Args:
         k, power-law coefficient (Jy/Sr)
         s0, reference flux (Jy)
         gamma, power law index
         smin, minimum flux to integrate from
+    Returns:
+
     '''
     return (k*s0**(gamma)*s**(-gamma+3))/(3-gamma)-(k*s0**(gamma)*smin**(-gamma+3))/(3-gamma)
 
