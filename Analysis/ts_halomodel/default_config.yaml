@@ -1,0 +1,79 @@
+#*****************************************
+#This is the default configuration file
+#for the HI-Ts modeleing software.
+#Modify copies of this file for
+# custom configurations.
+#*****************************************
+#
+#*****************************************
+#Parameters governing HI distribution
+ALPHA : 0.09 #Fraction HI in halo masses relative to cosmic
+             #
+BETA : -0.58 #Slope of HIM-HM relation in Padmanabhan 2017
+             #
+GAMMA : 1.45 # evolution of the HI concentration.
+             #
+LOGV0 : 1.56 # log10 of the low-mass virial velocity cutoff for HI
+             #
+C0 : 28.65   # concentration parameter
+             #
+MHIFUNC : mHI_padmanabhan17_b #function in hi_helper functions to use
+                             #for the HI-HM function
+CSHIFUNC : concentration_padmanabhan17_b #
+                             #
+SIGMA_LOG_HI : 0.56          #scatter in ln(mHI(mhalo))
+#******************************************
+#Parameters governing metallicity.
+#******************************************
+LILLY13 : #Parameters for Lilly 2013 metallicity model.
+          LOGYIELD : 9. #log10 of metallicity yield for star formation
+                        #
+          Z0DY : 0.     #fraction of yield in metals falling into halos
+                        #
+          LOADING10 : 0.29  #mass loading of outflows for galaxies with stellar
+                            #masses of 10^10 Msolar
+          LOADINGPOW : -0.79 #power law scaling of mass loading
+                            #with stellar mass
+          DEPLETION10 : 2.7 #Gas depletion time in Gyr for a 10^10
+                            #stellar mass galaxy
+          DEPLETIONPOW : 0.32 #power law index for evolution of depletion
+                              #time with stellar mass.
+          DEPLETION_EV_POW : 1. #power law dependence of depletion time
+                               # on (1+z).
+          RETURN_FRAC : 0.4    # fraction of stellar mass returned to ISM
+                               # through winds.
+TS0_FUNC : Ts0_MZR_Lilly2013 #function for spin temperature at center
+                            # of dark matter halo.
+ZSLOPE  : -0.8051           #metallicity exponential:
+                            # 10^(ZSLOPE (log_10(O/H)+12)+ ZCONST)
+ZCONST : 8.995              # T_s=10^(ZSLOPE (log_10(O/H)+12)+ ZCONST)
+                            #
+RT  : 16.67                  #Scale factor for exponential metallicity gradient
+                            #(proper kpc/h)
+SIGMA_LOG_TS0 : 1.15        #Standard deviation
+                            #for ln(T(log(O/H)+12=0.))
+RHOTSMODEL : rhoHI_over_Ts_exp #Function for rho/Ts
+                            #
+CORR_Z_HI : -0.26           #correlation between HI and Z
+#*******************************************
+#Continuum radio source pparameters.
+#*******************************************
+INCLUDE_ARCADE : True #Set True to include Cosmic Radio Background
+                      #
+ARCADE_BIAS : 1.      #Bias parameter for arcade source clustering
+                      #
+ARCADE_POW : 0.6      #Power law (in specific intensity) for arcade
+                      #emission
+MEFF_AGN : 1e15       #Mass corresponding to bias of radio AGN halo.
+                      #
+MEFF_SFG : 1e11 #Mass corresponding to bias of radio emitting SFGs
+
+ZMIN_ARCADE : 5. #Minimum redshift of source emission contributing to ARCADE
+
+ZMAX_ARCADE : 10. #Maximum redshift of source emission contributing to ARCADE
+#********************************************
+#Kinematic parameters
+#********************************************
+XPEAK : 0.4 #mode for lognormal distribution of
+            # v90 as a function of virial mass (Haehnelt 2014)
+XFWHM : 0.6 #FWHM of x given by lognormal distribution (see Haehnelt 2014 )

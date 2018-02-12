@@ -17,6 +17,24 @@ import scipy.interpolate as interp
 import scipy.optimize as op
 import radio_background as rb
 
+def secant_method(func,xn2,dx0=1e-2,epsilon=1e-6):
+    '''
+    follow slope downhill from start point x0 until convergence
+    '''
+    xn1=xn2*(1.+dx0)
+    xn=xn1-func(xn1)*(xn1-xn2)/(func(xn1)-func(xn2))
+    while np.abs(func(xn))>epsilon:
+        xn2=xn1
+        xn1=xn
+        xn=xn1-func(xn1)*(xn1-xn2)/(func(xn1)-func(xn2))
+        if xn<=R_INTERP_MIN:
+            xn=R_INTERP_MIN
+        break
+    return xn
+
+
+
+
 def nhidt(b,m,z,params,include_temp=True):
     '''
     Compute NHI/Ts as a function of impact parameter.
@@ -76,8 +94,8 @@ def tau_gaussian(b,m,z,offset,params,dlogr=0,integrated=False,
         splkey=('tau_gaussian',z)+dict2tuple(params)
         if splkey not in SPLINE_DICT:
             maxis=np.logspace(M_INTERP_MIN,M_INTERP_MAX,N_INTERP_M)
-            raxis=np.logspace(R_INTERP_MIN,0,N_INTERP_RTAU)
-            taumaxvals=np.zeros((N_INTERP_M,N_INTERP_RTAU))
+            raxis=np.logspace(R_INTERP_MIN,0,N_INTERP_TAU)
+            taumaxvals=np.zeros((N_INTERP_M,N_INTERP_TAU))
             for mnum,mval in enumerate(maxis):
                 for rnum,rval in enumerate(raxis):
                     taumaxvals[mnum,rnum]\
@@ -120,7 +138,7 @@ def tau_gaussian(b,m,z,offset,params,dlogr=0,integrated=False,
 
 
 
-def r_tau(tau,m,z,params,recompute=False,dtau=0.):
+def r_tau(tau,m,z,params,recompute=False,dtau=0):
     '''
     Compute the radius of a halo within which all LoSs subtend a maximum.
     tau'>tau.
@@ -138,28 +156,44 @@ def r_tau(tau,m,z,params,recompute=False,dtau=0.):
     splkey=('r_tau',z)+dict2tuple(params)
     if not splkey in SPLINE_DICT or recompute:
         maxis=np.logspace(M_INTERP_MIN,M_INTERP_MAX,N_INTERP_M)
-        tauaxis=np.logspace(TAU_INTERP_MIN,TAU_INTERP_MAX,N_INTERP_TAU)[::-1]
+        tauaxis=np.logspace(TAU_INTERP_MIN,TAU_INTERP_MAX,N_INTERP_RTAU)
         rvals=np.ones((N_INTERP_M,N_INTERP_RTAU))*10.**R_INTERP_MIN
+        raxis=np.logspace(R_INTERP_MIN,0.,N_INTERP_RTAU)
         for mnum,mval in enumerate(maxis):
-            r0=R_INTERP_MIN
+            #print '%.1e'%(mval)
+            #r0=R_INTERP_MIN
             rv=rVir(mval,z)
-            if tau_gaussian(rv*10.**r0,mval,z,F21,params)>10.**TAU_INTERP_MIN:
-                for taunum,tauval in enumerate(tauaxis):
-                    g=lambda x:np.abs(np.log(tau_gaussian(rv*10.**x,
-                    mval,z,F21,params)/tauval/rv/10.**x))
-                    res=op.minimize(g,x0=[r0],bounds=[[r0,0.]],method='SLSQP').x
-                    r0=res[0]
-                    rvals[mnum,taunum]=10.**r0
+            #print 'mval=%e'%mval
+            #if tau_gaussian(rv*10.**r0,mval,z,F21,params)>10.**TAU_INTERP_MIN:
+            #    for taunum,tauval in enumerate(tauaxis):
+            #        g=lambda x:np.abs(np.log(tau_gaussian(rv*10.**x,
+            #        mval,z,F21,params)/tauval))
+            #        g=lambda x:np.abs(np.log(tau_gaussian(rv*10.**x,
+            #        mval,z,F21,params)/tauval/10.**x/rv))
+            #        g=lambda x:np.abs(1.-tauval/tau_gaussian(10.**x*rv,mval,z,F21,params))/10.**x/rv)
+                    #r0=secant_method(g,r0)
+                    #res=op.minimize(g,x0=[r0],bounds=[[r0,r0+.1]],method='SLSQP')
+            #        res=op.minimize(g,x0=[r0],method='SLSQP',bounds=[[r0,0.]])
+            #        r0=res.x[0]
+                    #print r0
+            #        rvals[mnum,taunum]=10.**r0
+            #First compute tau for regularly gridded r-values
+            taus=tau_gaussian(raxis*rv,mval,z,F21,params)
+            temp_spline=interp.interp1d(taus,raxis,
+            bounds_error=False,fill_value=0.)
+            rvals[mnum,:]=temp_spline(tauaxis)
+            #Now compute r for regularly gridded tau
+
         SPLINE_DICT[splkey]=\
         interp.RectBivariateSpline(np.log(maxis),
-        np.log(tauaxis[::-1]),np.log(rvals[:,::-1]))
-    if dtau==1.:
+        np.log(tauaxis),rvals)
+    if dtau==1:
         #return dr/dtau
         return SPLINE_DICT[splkey].ev(np.log(m),
-        np.log(tau),dy=dtau)/tau*r_tau(tau,m,z,params)
+        np.log(tau),dy=int(dtau))/tau*rVir(m,z)
     else:
-        return np.exp(SPLINE_DICT[splkey].ev(np.log(m),
-        np.log(tau)))*rVir(m,z)
+        return SPLINE_DICT[splkey].ev(np.log(m),
+        np.log(tau))*rVir(m,z)
 
 def sigma_tau(tau,m,z,params,recompute=False):
     '''
@@ -188,7 +222,7 @@ def dsigma_dtau(tau,m,z,params,recompute=False):
         dsigma/dtau (Mpc/h)^2
     '''
     return 2.*PI*r_tau(tau,m,z,params,recompute=recompute)\
-    *r_tau(tau,m,z,params,dtau=1.,recompute=recompute)
+    *r_tau(tau,m,z,params,dtau=1,recompute=recompute)
 
 
 def dsigma_dtau(tau,m,z,params):
