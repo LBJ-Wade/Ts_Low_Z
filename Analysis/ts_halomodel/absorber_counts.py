@@ -279,6 +279,7 @@ def d_tau_variance_dm(m,z,params):
     return np.exp(SPLINE_DICT[splkey](np.log(m)))
 
 
+
 def tau_variance(z,channel_width,params):
     '''
     \int dm dtau dsigma/dtau(tau,m,z) tau^2
@@ -367,6 +368,57 @@ def dn_dr(snr,channel_width,z,params,singlesnr=False):
         *sigma_tau(tau_limit(snr,10.**x,z,channel_width,params),
         10.**x,z,params)
         return integrate.quad(g,M_INTERP_MIN,M_INTERP_MAX)[0]
+
+
+def dn_dtau_dz(z,tau,params):
+    '''
+    compute the number of optical depth features per redshift interval
+    per optical depth interval.
+    Args:
+        z, redshift
+        tau, optical depth
+        params, model parameters
+    Returns:
+        average number of optical depth features between tau and tau+d_tau
+        and redshift z and dz in a los on the sky.
+    '''
+    splkey=('dn_dtau_domega_dz',z)+dict2tuple(params)
+    if not SPLINE_DICT.has_key(splkey):
+        tauvals=np.logspace(TAU_INTERP_MIN,TAU_INTERP_MAX,N_INTERP_TAU)
+        dnvals=np.zeros_like(tauvals)
+        for taunum,tauval in enumerate(tauaxis):
+            g=lambda x: massfunc(10.**x,z)*dsigma_dtau(tauval,10.**x,z)
+            dnvals[taunum]=integrate.quad(g,M_INTERP_MIN,M_INTERP_MAX)*1e-3*C\/
+            COSMO.Hz(z)
+        SPLINE_DICT[splkey]=interp.interp1d(np.log(tauvals),np.log(dnvals))
+    return np.exp(SPLINE_DICT[splkey](np.log(tau)))
+
+def dn_dsobs_dz(z,sobs,params):
+    '''
+    compute the number of absorption features
+    with depth sobs, per redshift interval and solid angle on the sky
+    Args:
+        z, redshift
+        sobs, observation flux
+        params, dictionaryt of parameters
+    Returns:
+        number of systems per observed flux bin per Sr between z and z+dz for
+        model params (Sr^-1 Jy^-1)
+    '''
+    splkey=('dn_dsobs_dz',z)+dict2tuple(params)
+    if not SPLINE_DICT.has_key(splkey):
+        svals=np.logspace(S_INTERP_MIN,S_INTERP_MAX,N_INTERP_SNR)
+        dndsdomegavals=np.zeros_like(svals)
+        for snum,sval in enumerate(svals):
+            g=lambda x: dn_dtau_dz(z,10.**x,params)*np.log(10.)*10.**x\
+            *dn_dlogs_domega(sval/10.**x,z,singles=False)/(sval/10.**x)\
+            /np.log(10.)
+            dndsdomegavals[snum]\
+            =integrate.quad(g,np.log10(sval)-S_INTERP_MAX,TAU_INTERP_MAX)[0]
+        SPLINE_DICT[splkey]=interp.interp1d(np.log(svals),
+        np.log(dndsdomegavals))
+    return np.exp(SPLINE_DICT[splkey].ev(np.log(svals)))
+
 
 
 
