@@ -326,6 +326,30 @@ def tau_limit(snr,m,z,channel_width,params):
     output=-np.log(np.max([1.-rchan/snr,1e-100]))
     return output
 
+def dn_dz_tau(tau,z,params):
+    '''
+    number of absorbers per redshift interval with optical depths greater than
+    tau.
+    Args:
+        tau, optical depth
+        z, redshift
+        params, dictionary of model parameters
+    Returns: number of absorbers per redshift interval (along LoS) with optical
+        depths greater than tau
+    '''
+    splkey=('dn_dz_tau',z)+dict2tuple(params)
+    if not SPLINE_DICT.has_key(splkey):
+        tauvals=np.logspace(TAU_INTERP_MIN,TAU_INTERP_MAX,N_INTERP_TAU)
+        dnvals=np.zeros_like(tauvals)
+        for taunum,tauval in enumerate(tauvals):
+            g=lambda x:sigma_tau(tauval,10.**x,z,params)*massfunc(10.**x,z)\
+            *C*1e-3/COSMO.Hz(z)*LITTLEH
+            dnvals[taunum]=integrate.quad(g,M_INTERP_MIN,M_INTERP_MAX)[0]
+        SPLINE_DICT[splkey]=interp.interp1d(np.log(tauvals),dnvals)
+    return SPLINE_DICT[splkey](np.log(tau))
+
+
+
 def dn_dr(snr,channel_width,z,params,singlesnr=False):
     '''
     number of absorbers per comoving LoS distance interval where fractional flux
@@ -370,7 +394,7 @@ def dn_dr(snr,channel_width,z,params,singlesnr=False):
         return integrate.quad(g,M_INTERP_MIN,M_INTERP_MAX)[0]
 
 
-def dn_dtau_dz(z,tau,params):
+def dn_dlogtau_dz(tau,z,params,recompute=False):
     '''
     compute the number of optical depth features per redshift interval
     per optical depth interval.
@@ -382,16 +406,18 @@ def dn_dtau_dz(z,tau,params):
         average number of optical depth features between tau and tau+d_tau
         and redshift z and dz in a los on the sky.
     '''
-    splkey=('dn_dtau_domega_dz',z)+dict2tuple(params)
-    if not SPLINE_DICT.has_key(splkey):
+    splkey=('dn_dlogtau_domega_dz',z)+dict2tuple(params)
+    if not SPLINE_DICT.has_key(splkey) or recompute:
         tauvals=np.logspace(TAU_INTERP_MIN,TAU_INTERP_MAX,N_INTERP_TAU)
         dnvals=np.zeros_like(tauvals)
-        for taunum,tauval in enumerate(tauaxis):
-            g=lambda x: massfunc(10.**x,z)*dsigma_dtau(tauval,10.**x,z)
-            dnvals[taunum]=integrate.quad(g,M_INTERP_MIN,M_INTERP_MAX)*1e-3*C\/
-            COSMO.Hz(z)
-        SPLINE_DICT[splkey]=interp.interp1d(np.log(tauvals),np.log(dnvals))
-    return np.exp(SPLINE_DICT[splkey](np.log(tau)))
+        for taunum,tauval in enumerate(tauvals):
+            g=lambda x: massfunc(10.**x,z)*dsigma_dtau(tauval,10.**x,z,params)\
+            *tauval*np.log(10.)
+            dnvals[taunum]=integrate.quad(g,M_INTERP_MIN,M_INTERP_MAX)[0]\
+            *1e-3*C/COSMO.Hz(z)*LITTLEH
+        print dnvals
+        SPLINE_DICT[splkey]=interp.interp1d(np.log(tauvals),dnvals)
+    return SPLINE_DICT[splkey](np.log(tau))
 
 def dn_dsobs_dz(z,sobs,params):
     '''
@@ -410,7 +436,7 @@ def dn_dsobs_dz(z,sobs,params):
         svals=np.logspace(S_INTERP_MIN,S_INTERP_MAX,N_INTERP_SNR)
         dndsdomegavals=np.zeros_like(svals)
         for snum,sval in enumerate(svals):
-            g=lambda x: dn_dtau_dz(z,10.**x,params)*np.log(10.)*10.**x\
+            g=lambda x: dn_dlogtau_dz(10.**x,z,params)\
             *dn_dlogs_domega(sval/10.**x,z,singles=False)/(sval/10.**x)\
             /np.log(10.)
             dndsdomegavals[snum]\
